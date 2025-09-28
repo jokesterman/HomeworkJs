@@ -180,10 +180,57 @@ class EJS_GameManager {
             delete this.EJS.resetTimeout;
         }
     }
-    restart() {
-        this.clearEJSResetTimer();
+   restart() {
+    this.clearEJSResetTimer();
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999";
+
+
+    const box = document.createElement("div");
+    box.style.cssText = "background:#fff;padding:20px 30px;border-radius:12px;max-width:400px;text-align:center;animation:shake 0.3s";
+
+    const title = document.createElement("div");
+    title.textContent = "ARE YOU REALLY SURE YOU WANT TO RESTART THE EMULATION?";
+    title.style.cssText = "font-size:18px;font-weight:bold;margin-bottom:8px;color:#d00000";
+    const subtitle = document.createElement("div");
+    subtitle.textContent = "This action will erase the current save and cannot be reversed.";
+    subtitle.style.cssText = "font-size:14px;color:#444;margin-bottom:16px";
+
+    const btns = document.createElement("div");
+    btns.style.cssText = "display:flex;justify-content:center;gap:10px";
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = "I understand";
+    confirmBtn.style.cssText = "padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;background:#d00000;color:#fff";
+
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = "padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;background:#ccc;color:#000";
+
+    const style = document.createElement("style");
+    style.textContent = "@keyframes shake {0%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-5px)}100%{transform:translateX(0)}}";
+    document.head.appendChild(style);
+    confirmBtn.onclick = () => {
+        document.body.removeChild(overlay);
+        document.head.removeChild(style);
         this.functions.restart();
-    }
+    };
+
+    cancelBtn.onclick = () => {
+        document.body.removeChild(overlay);
+        document.head.removeChild(style);
+    };
+
+    btns.appendChild(confirmBtn);
+    btns.appendChild(cancelBtn);
+    box.appendChild(title);
+    box.appendChild(subtitle);
+    box.appendChild(btns);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
+
     getState() {
         return this.Module.EmulatorJSGetState();
     }
