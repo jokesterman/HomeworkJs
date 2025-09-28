@@ -1,111 +1,170 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>EmulatorJS</title>
-        <link rel = icon href = docs/favicon.ico sizes = "16x16 32x32 48x48 64x64" type = image/vnd.microsoft.icon>
-        <meta name = viewport content = "width = device-width, initial-scale = 1">
-        <style>
-             body, html {
-                height: 100%;
-                background-color: black;
-                color: white;
-            }
+        <title>HomeworkJS</title>
+        <link rel="icon" href="docs/favicon.ico" sizes="16x16 32x32 48x48 64x64" type="image/vnd.microsoft.icon">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body, html {
+            height: 100%;
+            background-color: black;
+            color: white;
+            margin: 0;
+            overflow: hidden;
+            font-family: monospace;
+        }
 
-            body {
-                margin: 0;
-                overflow: hidden;
-            }
+        body, #box, #top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
 
-            body, #box, #top {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-direction: column;
-            }
+        #box {
+            color: #aaa;
+            height: 20em;
+            width: 30em;
+            max-width: 80%;
+            max-height: 80%;
+            background-color: #333;
+            border-radius: 0.4em;
+            border: 2px solid #555;
+            position: relative;
+            flex-direction: column;
+            transition-duration: 0.2s;
+            overflow: hidden;
+            font-weight: bold;
+            font-size: 20px;
+            text-align: center;
+            padding: 10px;
+        }
 
-            #box {
-                color: #aaa;
-                height: 20em;
-                width: 30em;
-                max-width: 80%;
-                max-height: 80%;
-                background-color: #333;
-                border-radius: 0.4em;
-                border: 2px solid #555;
-                position: relative;
-                flex-direction: column;
-                transition-duration: 0.2s;
-                overflow: hidden;
-                font-family: monospace;
-                font-weight: bold;
-                font-size: 20px;
-                margin: 5px;
-                text-align: center;
-                padding: 10px;
-            }
+        #box:hover, #box[drag] {
+            border-color: #1AAFFF;
+            color: #ddd;
+        }
 
-            #box:hover, #box[drag] {
-                border-color: #1AAFFF;
-                color: #ddd
-            }
+        #input {
+            cursor: pointer;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+        }
 
-            #input {
-                cursor: pointer;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-                opacity: 0;
-            }
+        #display {
+            width: 100%;
+            height: 100%;
+        }
 
-            #display {
-                width: 100%;
-                height: 100%
-            }
+        select, button {
+            padding: 0.6em 0.4em;
+            margin: 0.5em;
+            width: 15em;
+            max-width: 100%;
+            font-weight: bold;
+            font-size: 16px;
+            background-color: #444;
+            color: #aaa;
+            border-radius: 0.4em;
+            border: 1px solid #555;
+            cursor: pointer;
+            transition-duration: 0.2s;
+        }
 
-            select, button {
-                padding: 0.6em 0.4em;
-                margin: 0.5em;
-                width: 15em;
-                max-width: 100%;
-                font-family: monospace;
-                font-weight: bold;
-                font-size: 16px;
-                background-color: #444;
-                color: #aaa;
-                border-radius: 0.4em;
-                border: 1px solid #555;
-                cursor: pointer;
-                transition-duration: 0.2s
-            }
+        select:hover, button:hover {
+            background-color: #666;
+            color: #ddd;
+        }
 
-            select:hover, button:hover {
-                background-color: #666;
-                color: #ddd
-            }
+        .logo {
+            width: 130px;
+            height: 130px;
+            filter: drop-shadow(0 0 8px white);
+        }
 
-            .logo {
-                width: 130px;
-                height: 130px;
-                filter: drop-shadow(0 0 8px white);
-            }
+        #top {
+            margin: 5px;
+            position: relative;
+        }
 
-            #top {
-                margin: 5px;
-            }
-        </style>
+        /* Top-right dropdown */
+        .dropdown {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .dropdown button {
+            background-color: #222;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 0.4em;
+            font-weight: bold;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #222;
+            border: 1px solid #444;
+            border-radius: 0.4em;
+            margin-top: 5px;
+            padding: 0.5em 0;
+            min-width: 220px;
+        }
+
+        .dropdown-content a {
+            display: block;
+            padding: 0.4em 1em;
+            color: #ccc;
+            text-decoration: none;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #444;
+            color: white;
+        }
+
+        .show {
+            display: block;
+        }
+    </style>
     </head>
 
     <body>
+         <div class="dropdown">
+            <button onclick="toggleDropdown()">ROM Sites ▼</button>
+            <div id="dropdownMenu" class="dropdown-content">
+                <a href="https://r-roms.github.io/" target="_blank">r-roms Megathread</a>
+                <a href="https://theromdepot.com/" target="_blank">The ROM Depot ⭐</a>
+                <a href="https://vimm.net/" target="_blank">Vimm's Lair</a>
+                <a href="https://emulatorgames.net/" target="_blank">Emulator Games</a>
+                <a href="https://romspedia.com/" target="_blank">ROMsPedia</a>
+            </div>
+        </div>
+        <div class="dropdown" style="top: 50px;">
+    <button onclick="toggleCdnDropdown()">CDN: Stable ▼</button>
+    <div id="cdnDropdownMenu" class="dropdown-content">
+        <a href="#" onclick="setCdnVersion('stable')">Stable</a>
+        <a href="#" onclick="setCdnVersion('latest')">Latest</a>
+        <a href="#" onclick="setCdnVersion('nightly')">Nightly</a>
+    </div>
+</div>
         <div id="top">
-            <h1>EmulatorJS Demo</h1>
+            <h1>HomeworkJS</h1>
             <img src="docs/Logo-light.png" alt="Logo" class="logo">
             <br>
+             
         </div>
         <div id="box">
-            <input type="file" id ="input" title="Upload" />
-            Drag ROM file or click here
+            <input type="file" id="input" title="Upload" />
+            Drag ROMMY homework file or click here
         </div>
 
         <script>
@@ -126,7 +185,7 @@
                     enableThreads = true;
                     console.log("Threads are enabled");
                 } else {
-                    console.warn("Threads are disabled as SharedArrayBuffer is not available. Threads requires two headers to be set when sending you html page. See https://stackoverflow.com/a/68630724");
+                    console.warn("Threads are disabled as SharedArrayBuffer is not available. Threads requires two headers to be set when sending your HTML page. See https://stackoverflow.com/a/68630724");
                     console.log("Threads are disabled");
                 }
             } else {
@@ -141,113 +200,137 @@
                 console.log(`Loading ROM from URL: roms/${urlParams.get("rom")}`);
                 run(false, urlParams.get("rom"));
             }
+            function toggleDropdown() {
+                const menu = document.getElementById("dropdownMenu");
+                menu.classList.toggle("show");
+                }
 
+
+                window.addEventListener("click", function (e) {
+                    if (!e.target.closest(".dropdown")) {
+                        document.getElementById("dropdownMenu")?.classList.remove("show");
+                    }
+                });
+            window.EJS_cdnVersion = "stable"; // Default
+
+function toggleCdnDropdown() {
+    const menu = document.getElementById("cdnDropdownMenu");
+    menu.classList.toggle("show");
+}
+
+function setCdnVersion(version) {
+    window.EJS_cdnVersion = version;
+    document.querySelector('.dropdown[style*="top: 50px"] button').textContent = `CDN: ${version.charAt(0).toUpperCase() + version.slice(1)} ▼`;
+    document.getElementById("cdnDropdownMenu").classList.remove("show");
+}
             async function run(upload, file) {
                 const url = upload ? input.files[0] : `roms/${file}`;
                 const parts = upload ? input.files[0].name.split(".") : file.split(".");
 
                 const core = await (async (ext) => {
                     if (["fds", "nes", "unif", "unf"].includes(ext))
-                        return "nes"
+                        return "nes";
 
                     if (["smc", "fig", "sfc", "gd3", "gd7", "dx2", "bsx", "swc"].includes(ext))
-                        return "snes"
+                        return "snes";
 
                     if (["z64", "n64"].includes(ext))
-                        return "n64"
+                        return "n64";
 
                     if (["pce"].includes(ext))
-                        return "pce"
+                        return "pce";
 
                     if (["ngp", "ngc"].includes(ext))
-                        return "ngp"
+                        return "ngp";
 
                     if (["ws", "wsc"].includes(ext))
-                        return "ws"
+                        return "ws";
 
                     if (["col", "cv"].includes(ext))
-                        return "coleco"
+                        return "coleco";
 
                     if (["d64"].includes(ext))
-                        return "vice_x64sc"
+                        return "vice_x64sc";
 
                     if (["nds", "gba", "gb", "z64", "n64"].includes(ext))
-                        return ext
+                        return ext;
 
                     return await new Promise(resolve => {
-                        var coreValues = {
-                            "Nintendo 64": "n64",
-                            "Nintendo Game Boy": "gb",
-                            "Nintendo Game Boy Advance": "gba",
-                            "Nintendo DS": "nds",
-                            "Nintendo Entertainment System": "nes",
-                            "Super Nintendo Entertainment System": "snes",
-                            "PlayStation": "psx",
-                            "Virtual Boy": "vb",
-                            "Sega Mega Drive": "segaMD",
-                            "Sega Master System": "segaMS",
-                            "Sega CD": "segaCD",
-                            "Atari Lynx": "lynx",
-                            "Sega 32X": "sega32x",
-                            "Atari Jaguar": "jaguar",
-                            "Sega Game Gear": "segaGG",
-                            "Sega Saturn": "segaSaturn",
-                            "Atari 7800": "atari7800",
-                            "Atari 2600": "atari2600",
-                            "Arcade": "arcade",
-                            "NEC TurboGrafx-16/SuperGrafx/PC Engine": "pce",
+                        const coreValues = {
+                            "N!ntend$ 64": "n64",
+                            "N!ntend$ Game B@y": "gb",
+                            "N!ntend$ Game B@y Adv@nc!": "gba",
+                            "N!ntend$ DS": "nds",
+                            "N!ntend$ Ent!rtainm!nt System": "nes",
+                            "Super N!ntend$ Ent!rtainm!nt System": "snes",
+                            "PlayStat!$n": "psx",
+                            "Virtu@l B@y": "vb",
+                            "Seg@ Meg@ Dr!ve": "segaMD",
+                            "Seg@ Mast!r System": "segaMS",
+                            "Seg@ CD": "segaCD",
+                            "At@r! Lynx": "lynx",
+                            "Seg@ 32X": "sega32x",
+                            "At@r! Jag@ar": "jaguar",
+                            "Seg@ Game G!@r": "segaGG",
+                            "Seg@ Sat#rn": "segaSaturn",
+                            "At@r! 7800": "atari7800",
+                            "At@r! 2600": "atari2600",
+                            "Arc@d!": "arcade",
+                            "NEC TurboGrafx-16/SuperGrafx/PC Eng!ne": "pce",
                             "NEC PC-FX": "pcfx",
-                            "SNK NeoGeo Pocket (Color)": "ngp",
-                            "Bandai WonderSwan (Color)": "ws",
-                            "ColecoVision": "coleco",
-                            "Commodore 64": "vice_x64sc",
-                            "Commodore 128": "vice_x128",
-                            "Commodore VIC20": "vice_xvic",
-                            "Commodore Plus/4": "vice_xplus4",
-                            "Commodore PET": "vice_xpet",
+                            "SNK Ne$Ge$ P$cket (Col$r)": "ngp",
+                            "Band@! W$nderSw@n (Col$r)": "ws",
+                            "Colec$V!s!$n": "coleco",
+                            "C$mm$dor! 64": "vice_x64sc",
+                            "C$mm$dor! 128": "vice_x128",
+                            "C$mm$dor! VIC20": "vice_xvic",
+                            "C$mm$dor! Plus/4": "vice_xplus4",
+                            "C$mm$dor! PET": "vice_xpet",
                             "DOSBOX-PURE": "dosbox_pure"
-                        }
+                        };
 
                         const cores = Object.keys(coreValues).sort().reduce(
-                            (obj, key) => { 
-                                obj[key] = coreValues[key]; 
+                            (obj, key) => {
+                                obj[key] = coreValues[key];
                                 return obj;
-                            }, 
+                            },
                             {}
                         );
 
-                        const button = document.createElement("button")
-                        const select = document.createElement("select")
+                        const button = document.createElement("button");
+                        const select = document.createElement("select");
 
                         for (const type in cores) {
-                            const option = document.createElement("option")
-
-                            option.value = cores[type]
-                            option.textContent = type
-                            select.appendChild(option)
+                            const option = document.createElement("option");
+                            option.value = cores[type];
+                            option.textContent = type;
+                            select.appendChild(option);
                         }
 
-                        button.onclick = () => resolve(select[select.selectedIndex].value)
-                        button.textContent = "Load game"
-                        box.innerHTML = ""
+                        button.onclick = () => resolve(select[select.selectedIndex].value);
+                        button.textContent = "Load Homework";
+                        box.innerHTML = "";
 
-                        box.appendChild(select)
-                        box.appendChild(button)
-                    })
-                })(parts.pop())
+                        box.appendChild(select);
+                        box.appendChild(button);
+                    });
+                })(parts.pop());
 
-                const div = document.createElement("div")
-                const sub = document.createElement("div")
-                const script = document.createElement("script")
+                const div = document.createElement("div");
+                const sub = document.createElement("div");
+                const script = document.createElement("script");
 
-                sub.id = "game"
-                div.id = "display"
+                sub.id = "game";
+                div.id = "display";
 
                 const top = document.getElementById("top");
+                document.querySelector('.dropdown')?.remove();
+                document.querySelector('.dropdown[style*="top: 50px"]')?.remove();
+
                 top.remove();
-                box.remove()
-                div.appendChild(sub)
-                document.body.appendChild(div)
+                box.remove();
+                div.appendChild(sub);
+                document.body.appendChild(div);
 
                 window.EJS_player = "#game";
                 window.EJS_gameName = parts.shift();
@@ -266,11 +349,11 @@
                 script.src = "data/loader.js";
                 document.body.appendChild(script);
             }
-            
+
             input.onchange = async () => {
                 run(true);
-            }
-            
+            };
+
             box.ondragover = () => box.setAttribute("drag", true);
             box.ondragleave = () => box.removeAttribute("drag");
         </script>
