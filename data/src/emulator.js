@@ -237,6 +237,9 @@ class EmulatorJS {
         this.cheats = [];
         this.started = false;
         this.volume = (typeof this.config.volume === "number") ? this.config.volume : 0.5;
+        this.autosaveEnabled = false;
+        this.autosaveInterval = null;
+        this.autosaveFileHandle = null;
         if (this.config.defaultControllers) this.defaultControllers = this.config.defaultControllers;
         this.muted = false;
         this.paused = true;
@@ -1099,6 +1102,7 @@ class EmulatorJS {
         } catch(e) {
             console.warn("Failed to start game", e);
             this.startGameError(this.localization("Failed to start game"));
+            this.stopAutosave(); 
             this.callEvent("exit");
             return;
         }
@@ -1160,6 +1164,7 @@ class EmulatorJS {
         });
         this.addEventListener(window, "beforeunload", (e) => {
             if (!this.started) return;
+            this.stopAutosave(); 
             this.callEvent("exit");
         });
         this.addEventListener(this.elements.parent, "dragenter", (e) => {
@@ -1327,6 +1332,11 @@ class EmulatorJS {
             icon: '<svg viewBox="0 0 448 512"><path fill="currentColor" d="M433.941 129.941l-83.882-83.882A48 48 0 0 0 316.118 32H48C21.49 32 0 53.49 0 80v352c0 26.51 21.49 48 48 48h352c26.51 0 48-21.49 48-48V163.882a48 48 0 0 0-14.059-33.941zM224 416c-35.346 0-64-28.654-64-64 0-35.346 28.654-64 64-64s64 28.654 64 64c0 35.346-28.654 64-64 64zm96-304.52V212c0 6.627-5.373 12-12 12H76c-6.627 0-12-5.373-12-12V108c0-6.627 5.373-12 12-12h228.52c3.183 0 6.235 1.264 8.485 3.515l3.48 3.48A11.996 11.996 0 0 1 320 111.48z"/></svg>',
             displayName: "Save State"
         },
+                autosave: {
+            visible: true,
+            icon: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3,2"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="8,11 12,7 16,11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+            displayName: "Auto Save"
+        },
         loadState: {
             visible: true,
             icon: '<svg viewBox="0 0 576 512"><path fill="currentColor" d="M572.694 292.093L500.27 416.248A63.997 63.997 0 0 1 444.989 448H45.025c-18.523 0-30.064-20.093-20.731-36.093l72.424-124.155A64 64 0 0 1 152 256h399.964c18.523 0 30.064 20.093 20.73 36.093zM152 224h328v-48c0-26.51-21.49-48-48-48H272l-64-64H48C21.49 64 0 85.49 0 112v278.046l69.077-118.418C86.214 242.25 117.989 224 152 224z"/></svg>',
@@ -1483,6 +1493,73 @@ class EmulatorJS {
 
         return mergedButtonOptions;
     }
+   async startAutosave() {
+    if (!window.showSaveFilePicker) {
+        this.displayMessage(this.localization("Browser does not support AutoSave"), 3000);
+        return;
+    }
+
+    try {
+        
+        this.displayMessage(this.localization("Rename to AutoSave.state for efficiency."), 3000); //Know which one is autosave file and which one is not
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        
+        this.autosaveFileHandle = await window.showSaveFilePicker({
+            suggestedName: this.getBaseFileName() + "-autosave.state",
+            types: [{
+                description: "Save State files",
+                accept: { "application/octet-stream": [".state"] }
+            }]
+        });
+
+        this.autosaveEnabled = true;
+
+        await this.performAutosave();
+
+        
+        this.autosaveInterval = setInterval(async () => {
+            try {
+                await this.performAutosave();
+            } catch (err) {
+                this.handleAutosaveError(err);
+            }
+        }, 10000); //10 seconds but can be adjusted
+
+    } catch (error) {
+        this.handleAutosaveError(error);
+    }
+}
+
+stopAutosave() {
+    if (this.autosaveInterval) {
+        clearInterval(this.autosaveInterval);
+        this.autosaveInterval = null;
+    }
+    this.autosaveEnabled = false;
+    this.autosaveFileHandle = null;
+    this.displayMessage(this.localization("Autosave disabled"), 3000);
+}
+
+async performAutosave() {
+    if (!this.autosaveFileHandle || !this.started || !this.gameManager) {
+        return; 
+    }
+
+    const state = this.gameManager.getState();
+    const writable = await this.autosaveFileHandle.createWritable();
+    await writable.write(state);
+    await writable.close();
+
+    this.displayMessage(this.localization("Autosaved"), 1000);
+}
+//error handling
+handleAutosaveError(error) { 
+    console.error("Autosave failed:", error);
+    this.displayMessage(this.localization("Autosave Failed"), 3000);
+    this.stopAutosave();
+}
+
     createContextMenu() {
         this.elements.contextmenu = this.createElement("div");
         this.elements.contextmenu.classList.add("ejs_context_menu");
@@ -2000,6 +2077,14 @@ class EmulatorJS {
                 a.click();
             }
         });
+         const autosave = addButton(this.config.buttonOpts.autosave, async () => {
+            if (!this.autosaveEnabled) {
+                await this.startAutosave();
+            } else {
+                this.stopAutosave();
+            }
+        });
+
         const loadState = addButton(this.config.buttonOpts.loadState, async () => {
             const called = this.callEvent("loadState");
             if (called > 0) return;
@@ -2309,6 +2394,7 @@ class EmulatorJS {
             this.addEventListener(submit, "click", (e) => {
                 popups[0].remove();
                 const body = this.createPopup("EmulatorJS has exited", {});
+                this.stopAutosave(); 
                 this.callEvent("exit");
             })
             setTimeout(this.menu.close.bind(this), 20);
@@ -2340,6 +2426,7 @@ class EmulatorJS {
             contextMenu: [contextMenuButton],
             fullscreen: [enter, exit],
             saveState: [saveState],
+            autosave: [autosave],
             loadState: [loadState],
             gamepad: [controlMenu],
             cheat: [cheatMenu],
@@ -2368,6 +2455,7 @@ class EmulatorJS {
                 unmuteButton.style.display = "none";
             }
             if (this.config.buttonOpts.saveState.visible === false) saveState.style.display = "none";
+            if (this.config.buttonOpts.autosave.visible === false) autosave.style.display = "none";
             if (this.config.buttonOpts.loadState.visible === false) loadState.style.display = "none";
             if (this.config.buttonOpts.saveSavFiles.visible === false) saveSavFiles.style.display = "none";
             if (this.config.buttonOpts.loadSavFiles.visible === false) loadSavFiles.style.display = "none";
@@ -6790,99 +6878,113 @@ class EmulatorJS {
             console.warn("Module is undefined. postMainLoop will not be set.");
         }
     }
-    createCheatsMenu() {
-        const body = this.createPopup("Cheats", {
-            "Add Cheat": () => {
-                const popups = this.createSubPopup();
-                this.cheatMenu.appendChild(popups[0]);
-                popups[1].classList.add("ejs_cheat_parent");
-                popups[1].style.width = "100%";
-                const popup = popups[1];
-                const header = this.createElement("div");
-                header.classList.add("ejs_cheat_header");
-                const title = this.createElement("h2");
-                title.innerText = this.localization("Add Cheat Code");
-                title.classList.add("ejs_cheat_heading");
-                const close = this.createElement("button");
-                close.classList.add("ejs_cheat_close");
-                header.appendChild(title);
-                header.appendChild(close);
-                popup.appendChild(header);
-                this.addEventListener(close, "click", (e) => {
-                    popups[0].remove();
-                })
+ createCheatsMenu() {
+    const body = this.createPopup("Cheats", {
+        "Add Cheat": () => {
+            const popups = this.createSubPopup();
+            this.cheatMenu.appendChild(popups[0]);
+            popups[1].classList.add("ejs_cheat_parent");
+            popups[1].style.width = "100%";
+            const popup = popups[1];
+            const header = this.createElement("div");
+            header.classList.add("ejs_cheat_header");
+            const title = this.createElement("h2");
+            title.innerText = this.localization("Add Cheat Code");
+            title.classList.add("ejs_cheat_heading");
+            const close = this.createElement("button");
+            close.classList.add("ejs_cheat_close");
+            header.appendChild(title);
+            header.appendChild(close);
+            popup.appendChild(header);
+            this.addEventListener(close, "click", (e) => {
+                popups[0].remove();
+            });
 
-                const main = this.createElement("div");
-                main.classList.add("ejs_cheat_main");
-                const header3 = this.createElement("strong");
-                header3.innerText = this.localization("Code");
-                main.appendChild(header3);
-                main.appendChild(this.createElement("br"));
-                const mainText = this.createElement("textarea");
-                mainText.classList.add("ejs_cheat_code");
-                mainText.style.width = "100%";
-                mainText.style.height = "80px";
-                main.appendChild(mainText);
-                main.appendChild(this.createElement("br"));
-                const header2 = this.createElement("strong");
-                header2.innerText = this.localization("Description");
-                main.appendChild(header2);
-                main.appendChild(this.createElement("br"));
-                const mainText2 = this.createElement("input");
-                mainText2.type = "text";
-                mainText2.classList.add("ejs_cheat_code");
-                main.appendChild(mainText2);
-                main.appendChild(this.createElement("br"));
-                popup.appendChild(main);
+            const main = this.createElement("div");
+            main.classList.add("ejs_cheat_main");
+            const header3 = this.createElement("strong");
+            header3.innerText = this.localization("Code");
+            main.appendChild(header3);
+            main.appendChild(this.createElement("br"));
+            const mainText = this.createElement("textarea");
+            mainText.classList.add("ejs_cheat_code");
+            mainText.style.width = "100%";
+            mainText.style.height = "80px";
+            main.appendChild(mainText);
+            main.appendChild(this.createElement("br"));
+            const header2 = this.createElement("strong");
+            header2.innerText = this.localization("Description");
+            main.appendChild(header2);
+            main.appendChild(this.createElement("br"));
+            const mainText2 = this.createElement("input");
+            mainText2.type = "text";
+            mainText2.classList.add("ejs_cheat_code");
+            main.appendChild(mainText2);
+            main.appendChild(this.createElement("br"));
+            popup.appendChild(main);
 
-                const footer = this.createElement("footer");
-                const submit = this.createElement("button");
-                const closeButton = this.createElement("button");
-                submit.innerText = this.localization("Submit");
-                closeButton.innerText = this.localization("Close");
-                submit.classList.add("ejs_button_button");
-                closeButton.classList.add("ejs_button_button");
-                submit.classList.add("ejs_popup_submit");
-                closeButton.classList.add("ejs_popup_submit");
-                submit.style["background-color"] = "rgba(var(--ejs-primary-color),1)";
-                footer.appendChild(submit);
-                const span = this.createElement("span");
-                span.innerText = " ";
-                footer.appendChild(span);
-                footer.appendChild(closeButton);
-                popup.appendChild(footer);
+            const footer = this.createElement("footer");
+            const submit = this.createElement("button");
+            const closeButton = this.createElement("button");
+            submit.innerText = this.localization("Submit");
+            closeButton.innerText = this.localization("Close");
+            submit.classList.add("ejs_button_button");
+            closeButton.classList.add("ejs_button_button");
+            submit.classList.add("ejs_popup_submit");
+            closeButton.classList.add("ejs_popup_submit");
+            submit.style["background-color"] = "rgba(var(--ejs-primary-color),1)";
+            footer.appendChild(submit);
+            const span = this.createElement("span");
+            span.innerText = " ";
+            footer.appendChild(span);
+            footer.appendChild(closeButton);
+            popup.appendChild(footer);
 
-                this.addEventListener(submit, "click", (e) => {
-                    if (!mainText.value.trim() || !mainText2.value.trim()) return;
-                    popups[0].remove();
-                    this.cheats.push({
-                        code: mainText.value,
-                        desc: mainText2.value,
-                        checked: false
-                    });
-                    this.updateCheatUI();
-                    this.saveSettings();
-                })
-                this.addEventListener(closeButton, "click", (e) => {
-                    popups[0].remove();
-                })
-            },
-            "Close": () => {
-                this.cheatMenu.style.display = "none";
-            }
-        }, true);
-        this.cheatMenu = body.parentElement;
-        this.cheatMenu.getElementsByTagName("h4")[0].style["padding-bottom"] = "0px";
-        const msg = this.createElement("div");
-        msg.style["padding-top"] = "0px";
-        msg.style["padding-bottom"] = "15px";
-        msg.innerText = this.localization("Note that some cheats require a restart to disable");
-        body.appendChild(msg);
-        const rows = this.createElement("div");
-        body.appendChild(rows);
-        rows.classList.add("ejs_cheat_rows");
-        this.elements.cheatRows = rows;
-    }
+            this.addEventListener(submit, "click", (e) => {
+                if (!mainText.value.trim() || !mainText2.value.trim()) return;
+                popups[0].remove();
+                this.cheats.push({
+                    code: mainText.value,
+                    desc: mainText2.value,
+                    checked: false
+                });
+                this.updateCheatUI();
+                this.saveSettings();
+            });
+            this.addEventListener(closeButton, "click", (e) => {
+                popups[0].remove();
+            });
+        },
+        "Close": () => {
+            this.cheatMenu.style.display = "none";
+        }
+    }, true);
+
+    this.cheatMenu = body.parentElement;
+    this.cheatMenu.getElementsByTagName("h4")[0].style["padding-bottom"] = "0px";
+
+    const msg = this.createElement("div");
+    msg.style["padding-top"] = "0px";
+    msg.style["padding-bottom"] = "15px";
+    msg.innerText = this.localization("Note that some cheats require a restart to disable");
+    body.appendChild(msg);
+
+    const rows = this.createElement("div");
+    body.appendChild(rows);
+    rows.classList.add("ejs_cheat_rows");
+    this.elements.cheatRows = rows;
+
+    // Just drop the link at the bottom
+    const cheatLink = this.createElement("div");
+    cheatLink.style.marginTop = "10px";
+    cheatLink.innerHTML = `See some cheats at 
+        <a href="https://github.com/libretro/libretro-database/tree/master/cht" target="_blank">
+            libretro cheat database
+        </a>`;
+    body.appendChild(cheatLink);
+}
+
+
     updateCheatUI() {
         if (!this.gameManager) return;
         this.elements.cheatRows.innerHTML = "";
@@ -6930,7 +7032,6 @@ class EmulatorJS {
         if (!this.gameManager) return;
         this.gameManager.setCheat(index, checked, code);
     }
-
     enableShader(name) {
         if (!this.gameManager) return;
         try {
